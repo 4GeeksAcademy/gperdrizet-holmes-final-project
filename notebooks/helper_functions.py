@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import r2_score, root_mean_squared_error
+from sklearn.metrics import r2_score, root_mean_squared_error, accuracy_score, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.preprocessing import FunctionTransformer
 
 
@@ -21,7 +21,7 @@ def cos_transform(period):
     return FunctionTransformer(_cos, kw_args={'period': period})
 
 
-def train_evaluate_model(
+def train_evaluate_regression(
         model: callable,
         train_df: pd.DataFrame,
         test_df: pd.DataFrame,
@@ -97,6 +97,47 @@ def train_evaluate_model(
     axs[2].set_ylabel('Residual quantiles')
 
     fig.tight_layout()
+
+    return model
+
+
+def train_evaluate_classification(
+        model: callable,
+        train_df: pd.DataFrame,
+        test_df: pd.DataFrame,
+        label: str,
+        plot_title: str
+) -> callable:
+    '''Takes model instance, train and test dfs, feature name and plot title string, trains and
+    evaluates model with R2, RMSE. Plots predicted vs actual, fit residuals and normal QQ plot.
+    returns fitted model instance'''
+
+    _ = model.fit(train_df.drop(label, axis=1), train_df[label])
+
+    training_predictions = model.predict(train_df.drop(label, axis=1))
+    training_labels = train_df[label]
+
+    testing_predictions = model.predict(test_df.drop(label, axis=1))
+    testing_labels = test_df[label]
+    
+    training_accuracy = accuracy_score(training_labels, training_predictions) * 100
+    print(f'Training Accuracy = {training_accuracy:.1f}\n')
+
+    testing_accuracy = accuracy_score(testing_labels, testing_predictions) * 100
+    print(f'Testing Accuracy = {testing_accuracy:.1f}\n')
+
+    cm = confusion_matrix(testing_labels, testing_predictions, normalize='true')
+
+    plt.title(f'{plot_title}\naccuracy = {testing_accuracy:.1f}')
+
+    cm_disp = ConfusionMatrixDisplay(
+        confusion_matrix=cm,
+        display_labels=[1,2,3,4,5,6,7,8]
+    )
+    _ = cm_disp.plot()
+
+    plt.xlabel('Predicted outcome')
+    plt.ylabel('True outcome')
 
     return model
 
