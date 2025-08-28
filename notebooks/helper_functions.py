@@ -5,20 +5,51 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import r2_score, root_mean_squared_error
+from sklearn.preprocessing import FunctionTransformer
 
 
-def train_evaluate_model(model: callable, train_df: pd.DataFrame, test_df: pd.DataFrame, label: str, plot_title: str, log_axes: bool=True) -> callable:
+def _sin(x, period):
+    return np.sin(x / period * 2 * np.pi)
+
+def _cos(x, period):
+    return np.cos(x / period * 2 * np.pi)
+
+def sin_transform(period):
+    return FunctionTransformer(_sin, kw_args={'period': period})
+
+def cos_transform(period):
+    return FunctionTransformer(_cos, kw_args={'period': period})
+
+
+def train_evaluate_model(
+        model: callable,
+        train_df: pd.DataFrame,
+        test_df: pd.DataFrame,
+        label: str,
+        plot_title: str,
+        label_transformer: callable=None,
+        log_axes: bool=True
+) -> callable:
     '''Takes model instance, train and test dfs, feature name and plot title string, trains and
     evaluates model with R2, RMSE. Plots predicted vs actual, fit residuals and normal QQ plot.
     returns fitted model instance'''
 
-    fit_result = model.fit(train_df.drop(label, axis=1), train_df[label])
+    _ = model.fit(train_df.drop(label, axis=1), train_df[label])
 
     training_predictions = model.predict(train_df.drop(label, axis=1))
     training_labels = train_df[label]
 
+    if label_transformer is not None:
+        training_predictions = label_transformer.inverse_transform(training_predictions.reshape(-1, 1))
+        training_labels = label_transformer.inverse_transform(training_labels.values.reshape(-1, 1))
+
     predictions = model.predict(test_df.drop(label, axis=1))
     labels = test_df[label]
+
+    if label_transformer is not None:
+        predictions = label_transformer.inverse_transform(predictions.reshape(-1, 1))
+        labels = label_transformer.inverse_transform(labels.values.reshape(-1, 1))
+    
     residuals = labels - predictions
     standardized_residuals = (residuals - np.mean(residuals)) / np.std(residuals)
     residual_quantiles = np.percentile(standardized_residuals, [0, 25, 50, 75, 100])
@@ -41,10 +72,10 @@ def train_evaluate_model(model: callable, train_df: pd.DataFrame, test_df: pd.Da
     fig.suptitle(f'{plot_title}\nR\u00b2 = {rsq:.3f}, RMSE = {rmse:.3f}')
 
     axs[0].set_title('True vs predicted')
-    axs[0].scatter(labels, predictions, color='black', s=0.5, alpha=0.5)
+    axs[0].scatter(predictions, labels, color='black', s=0.5, alpha=0.5)
     axs[0].axline((0, 0), slope=1, color='red', linestyle='--', label='Ideal fit')
-    axs[0].set_xlabel(f'True {label}')
-    axs[0].set_ylabel(f'Predicted {label}')
+    axs[0].set_ylabel(f'True {label}')
+    axs[0].set_xlabel(f'Predicted {label}')
 
     if log_axes is True:
         axs[0].set_yscale('log')
