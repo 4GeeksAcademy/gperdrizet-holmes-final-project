@@ -121,14 +121,12 @@ def train_evaluate_classification(
     testing_labels = test_df[label]
     
     training_accuracy = accuracy_score(training_labels, training_predictions) * 100
-    print(f'Training Accuracy = {training_accuracy:.1f}\n')
+    print(f'Training Accuracy = {training_accuracy:.1f}')
 
     testing_accuracy = accuracy_score(testing_labels, testing_predictions) * 100
     print(f'Testing Accuracy = {testing_accuracy:.1f}\n')
 
     cm = confusion_matrix(testing_labels, testing_predictions, normalize='true')
-
-    plt.title(f'{plot_title}\naccuracy = {testing_accuracy:.1f}')
 
     cm_disp = ConfusionMatrixDisplay(
         confusion_matrix=cm,
@@ -136,8 +134,9 @@ def train_evaluate_classification(
     )
     _ = cm_disp.plot()
 
-    plt.xlabel('Predicted outcome')
-    plt.ylabel('True outcome')
+    plt.title(f'{plot_title}\naccuracy = {testing_accuracy:.1f}')
+    plt.xlabel('Predicted turnaround time')
+    plt.ylabel('True turnaround time')
 
     return model
 
